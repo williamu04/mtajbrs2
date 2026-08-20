@@ -68,14 +68,15 @@ const API = {
   getStats() { return this.request('GET', '/api/stats') },
 
   // Attendance (public)
-  getAttendance(eventId) {
+  async getAttendance(eventId) {
     return fetch(`/api/attendance/${eventId}`).then(async r => {
       const data = await r.json()
       if (!r.ok) throw new Error(data.error || 'Gagal memuat data')
       return data
     })
   },
-  submitAttendance(eventId, attendance) {
+
+  async submitAttendance(eventId, attendance) {
     return fetch(`/api/attendance/${eventId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
