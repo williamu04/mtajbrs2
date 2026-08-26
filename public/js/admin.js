@@ -90,11 +90,11 @@ async function renderBatches() {
       <div class="form-grid" style="margin-top:12px">
         <div class="field">
           <label for="batchNameInput">Nama gelombang</label>
-          <input type="text" id="batchNameInput" placeholder="cth. Gelombang 1" autocomplete="off">
+          <input type="text" id="batchNameInput" placeholder="cth. Gelombang Remaja" autocomplete="off">
         </div>
         <div class="field">
           <label for="batchDescInput">Deskripsi (opsional)</label>
-          <input type="text" id="batchDescInput" placeholder="cth. Angkatan 2024" autocomplete="off">
+          <input type="text" id="batchDescInput" placeholder="cth. Gelombang Remaja kamis" autocomplete="off">
         </div>
         <button class="btn btn-primary" onclick="createBatch()">${ic('plus')} Tambah</button>
       </div>
@@ -356,7 +356,7 @@ async function renderMembers() {
       <div class="form-grid" style="margin-top:12px">
         <div class="field">
           <label for="memberNameInput">Nama anggota</label>
-          <input type="text" id="memberNameInput" placeholder="cth. Abid Solehudin" autocomplete="off">
+          <input type="text" id="memberNameInput" placeholder="cth. Ghazwan" autocomplete="off">
         </div>
         <div class="field">
           <label for="memberGroupInput">Kelompok</label>
@@ -444,8 +444,8 @@ async function renderMembers() {
           </summary>
           <div class="batch-groups">
             ${groups.filter(g => !g.batch_id).map(g => {
-      const gMembers = members.filter(m => m.group_id === g.id)
-      return `
+    const gMembers = members.filter(m => m.group_id === g.id)
+    return `
               <details class="group-details">
                 <summary class="group-summary">
                   <span class="chev">${ic('chevron')}</span>
@@ -483,7 +483,7 @@ async function renderMembers() {
                 </div>`}
               </details>
             `
-    }).join('')}
+  }).join('')}
           </div>
         </details>` : ''}
       </div>
@@ -583,9 +583,35 @@ async function deleteMember(id) {
 // ── Events ──
 async function renderEvents() {
   const el = document.getElementById('tab-events')
-  const [events, groups] = await Promise.all([API.getEvents(), API.getGroups()])
+  const [events, groups, batches] = await Promise.all([API.getEvents(), API.getGroups(), API.getBatches()])
 
   const today = new Date().toISOString().slice(0, 10)
+
+  const pillCheckboxes = list => list.map(g => `
+    <input type="checkbox" class="pill-input" id="gc-${g.id}" value="${g.id}">
+    <label class="pill-check" for="gc-${g.id}"><span>${esc(g.name)}</span></label>
+  `).join('')
+
+  const groupSections = batches
+    .map(b => ({
+      title: esc(b.name),
+      groups: groups.filter(g => g.batch_id === b.id),
+    }))
+    .filter(x => x.groups.length > 0)
+  const unassigned = groups.filter(g => !g.batch_id)
+
+  const groupPills = [
+    ...groupSections.map(x => `
+      <div class="pill-subgroup">
+        <span class="pill-subgroup-label">${x.title}</span>
+        <div class="pill-group">${pillCheckboxes(x.groups)}</div>
+      </div>`),
+    ...(unassigned.length ? `
+      <div class="pill-subgroup">
+        <span class="pill-subgroup-label">Tanpa Gelombang</span>
+        <div class="pill-group">${pillCheckboxes(unassigned)}</div>
+      </div>` : []),
+  ].join('')
 
   el.innerHTML = `
     <div class="page-head">
@@ -618,7 +644,7 @@ async function renderEvents() {
         </div>
         <div class="field">
           <label for="eventLocInput">Lokasi (opsional)</label>
-          <input type="text" id="eventLocInput" placeholder="cth. Cabang Karangpandan 1" autocomplete="off">
+          <input type="text" id="eventLocInput" placeholder="cth. Cabang Jebres 2" autocomplete="off">
         </div>
       </div>
       <div class="field" style="margin-top:4px">
@@ -627,12 +653,8 @@ async function renderEvents() {
       </div>
       <div class="field" style="margin-top:14px">
         <label>Sertakan kelompok</label>
-        <div class="pill-group" id="eventGroupCheckboxes">
-          ${groups.map(g => `
-            <input type="checkbox" class="pill-input" id="gc-${g.id}" value="${g.id}">
-            <label class="pill-check" for="gc-${g.id}"><span>${esc(g.name)}</span></label>
-          `).join('')}
-          ${groups.length ? '' : '<span class="muted text-sm">Belum ada kelompok.</span>'}
+        <div id="eventGroupCheckboxes">
+          ${groups.length ? groupPills : '<span class="muted text-sm">Belum ada kelompok.</span>'}
         </div>
       </div>
       <button class="btn btn-primary" onclick="addEvent()" style="margin-top:16px">${ic('plus')} Buat Kegiatan</button>
@@ -774,7 +796,7 @@ function copyLink(eventId) {
 
 let _statsData = null
 let _statsSort = { field: 'nickname', dir: 1 }
-let _statsGroupFilter = ''
+let _statsBatchFilter = ''
 
 // ── Statistics ──
 async function renderStats() {
@@ -819,12 +841,12 @@ async function renderStats() {
     }
     html += `</div>`
 
-    // Build unique group list for filter
-    const groupSet = [...new Set(data.members.map(m => m.group))]
-    groupSet.sort()
+    // Build unique batch list for filter
+    const batchSet = [...new Set(data.members.map(m => m.batch))]
+    batchSet.sort()
 
     // Apply filter and sort
-    let filtered = data.members.filter(m => !_statsGroupFilter || m.group === _statsGroupFilter)
+    let filtered = data.members.filter(m => !_statsBatchFilter || m.batch === _statsBatchFilter)
     filtered.sort((a, b) => {
       let va = a[_statsSort.field], vb = b[_statsSort.field]
       if (typeof va === 'string') va = va.toLowerCase()
@@ -837,9 +859,9 @@ async function renderStats() {
     html += `<div class="card"><div class="card-head"><div class="card-title">Kehadiran per anggota</div></div>`
     html += `
       <div class="stats-controls">
-        <select id="statsGroupFilter" onchange="setStatsGroupFilter(this.value)" aria-label="Filter kelompok">
-          <option value="">Semua kelompok</option>
-          ${groupSet.map(g => `<option value="${esc(g)}"${_statsGroupFilter === g ? ' selected' : ''}>${esc(g)}</option>`).join('')}
+        <select id="statsBatchFilter" onchange="setStatsBatchFilter(this.value)" aria-label="Filter gelombang">
+          <option value="">Semua gelombang</option>
+          ${batchSet.map(g => `<option value="${esc(g)}"${_statsBatchFilter === g ? ' selected' : ''}>${esc(g)}</option>`).join('')}
         </select>
         <button class="btn btn-sm btn-outline" onclick="refreshStats()">${ic('refresh')} Segarkan</button>
       </div>
@@ -850,6 +872,7 @@ async function renderStats() {
       html += `<div class="table-scroll"><table class="table stats-table">
         <thead><tr>
           <th class="sortable" onclick="sortStats('nickname')">Nama ${sortIcon('nickname')}</th>
+          <th class="sortable" onclick="sortStats('batch')">Gelombang ${sortIcon('batch')}</th>
           <th class="sortable" onclick="sortStats('group')">Kelompok ${sortIcon('group')}</th>
           <th class="sortable" onclick="sortStats('total_events')">Kegiatan ${sortIcon('total_events')}</th>
           <th class="sortable" onclick="sortStats('hadir')">Hadir ${sortIcon('hadir')}</th>
@@ -862,6 +885,7 @@ async function renderStats() {
           ${filtered.map(m => `
             <tr>
               <td>${esc(m.nickname)}</td>
+              <td>${esc(m.batch)}</td>
               <td class="muted">${esc(m.group)}</td>
               <td class="num">${m.total_events}</td>
               <td class="num" style="color:var(--hadir-strong);font-weight:700">${m.hadir}</td>
@@ -894,15 +918,15 @@ function sortStats(field) {
   renderStats()
 }
 
-function setStatsGroupFilter(val) {
-  _statsGroupFilter = val
+function setStatsBatchFilter(val) {
+  _statsBatchFilter = val
   _statsData = null
   renderStats()
 }
 
 function refreshStats() {
   _statsData = null
-  _statsGroupFilter = ''
+  _statsBatchFilter = ''
   renderStats()
 }
 

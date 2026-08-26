@@ -289,6 +289,9 @@ textarea { resize: vertical; min-height: 64px; }
 .pill-input:focus-visible + .pill-check { box-shadow: var(--focus); }
 
 .pill-group { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill-subgroup { margin-top: 12px; }
+.pill-subgroup:first-child { margin-top: 0; }
+.pill-subgroup-label { display: block; font-size: .75rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 6px; }
 
 /* ── Search box ── */
 .search-box {

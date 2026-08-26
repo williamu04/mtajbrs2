@@ -81,18 +81,27 @@ export async function onRequestGet(context) {
       memberStatusCounts[a.member_id][a.status]++
     }
 
-    // Build group name lookup
-    const groups = await supabase.select('groups', { select: 'id, name' })
+    // Build group name + batch lookup
+    const groups = await supabase.select('groups', { select: 'id, name, batch_id' })
     const groupNames = {}
-    for (const g of groups) groupNames[g.id] = g.name
+    const groupBatchIds = {}
+    for (const g of groups) {
+      groupNames[g.id] = g.name
+      if (g.batch_id) groupBatchIds[g.id] = g.batch_id
+    }
+    const batches = await supabase.select('batches', { select: 'id, name' })
+    const batchNames = {}
+    for (const b of batches) batchNames[b.id] = b.name
 
     const perMember = members.map(m => {
       const counts = memberStatusCounts[m.id] || { hadir: 0, sakit: 0, izin: 0, alpha: 0 }
       const total = memberEventCount[m.id] || 0
+      const batchId = groupBatchIds[m.group_id]
       return {
         id: m.id,
         nickname: m.nickname,
         group: groupNames[m.group_id] || '',
+        batch: batchNames[batchId] || 'Tanpa Gelombang',
         total_events: total,
         hadir: counts.hadir,
         sakit: counts.sakit,
