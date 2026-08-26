@@ -65,16 +65,172 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
       window.location.href = 'login.html'
       return
     }
+    renderBatches()
     renderGroups()
     renderMembers()
     renderEvents()
     renderStats()
   })()
 
+// ── Batches (Gelombang) ──
+async function renderBatches() {
+  const el = document.getElementById('tab-batches')
+  const batches = await API.getBatches()
+
+  el.innerHTML = `
+    <div class="page-head">
+      <div class="head-actions">
+        <h1>${batches.length} Gelombang</h1>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Tambah gelombang</div>
+      <div class="card-desc">Gelombang mengelompokkan beberapa kelompok.</div>
+      <div class="form-grid" style="margin-top:12px">
+        <div class="field">
+          <label for="batchNameInput">Nama gelombang</label>
+          <input type="text" id="batchNameInput" placeholder="cth. Gelombang 1" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="batchDescInput">Deskripsi (opsional)</label>
+          <input type="text" id="batchDescInput" placeholder="cth. Angkatan 2024" autocomplete="off">
+        </div>
+        <button class="btn btn-primary" onclick="createBatch()">${ic('plus')} Tambah</button>
+      </div>
+      <div class="panel-divider"></div>
+      ${batches.length ? `
+      <div class="card-head">
+        <div class="card-title">Daftar gelombang</div>
+        <span class="badge badge-count">${batches.length}</span>
+      </div>
+      <div class="table-scroll">
+        <table class="table">
+          <thead><tr><th>Nama</th><th>Deskripsi</th><th class="right">Aksi</th></tr></thead>
+          <tbody>
+            ${batches.map(b => `
+              <tr>
+                <td>
+                  <div class="cell-main">
+                    <span class="avatar" style="background:${colorFor(b.id)}">${initials(b.name)}</span>
+                    <span class="cell-title" id="bname-${b.id}">${esc(b.name)}</span>
+                  </div>
+                </td>
+                <td class="muted"><span id="bdesc-${b.id}">${esc(b.description || '')}</span></td>
+                <td class="td-actions">
+                  <div class="inline-edit">
+                    <button class="btn btn-sm btn-ghost" onclick="editBatch('${b.id}')">${ic('edit')} Ubah</button>
+                    <button class="btn btn-sm btn-ghost-danger" onclick="deleteBatch('${b.id}')">${ic('trash')} Hapus</button>
+                  </div>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>` : `<div class="empty">
+        <span class="empty-icon">${ic('users')}</span>
+        Belum ada gelombang. <span class="muted">Buat gelombang pertama di atas.</span>
+      </div>`}
+    </div>
+  `
+}
+
+async function createBatch() {
+  const name = document.getElementById('batchNameInput').value.trim()
+  const desc = document.getElementById('batchDescInput').value.trim()
+  if (!name) { toast('Nama gelombang wajib diisi.', 'error'); return }
+  await API.createBatch(name, desc)
+  document.getElementById('batchNameInput').value = ''
+  document.getElementById('batchDescInput').value = ''
+  toast('Gelombang berhasil ditambahkan.')
+  renderBatches()
+}
+
+async function editBatch(id) {
+  const nameSpan = document.getElementById(`bname-${id}`)
+  const descSpan = document.getElementById(`bdesc-${id}`)
+  const row = nameSpan.closest('tr')
+  const currentName = nameSpan.textContent
+  const currentDesc = descSpan.textContent
+
+  nameSpan.outerHTML = `<input type="text" id="edit-bname-${id}" value="${esc(currentName)}" style="width:170px">`
+  descSpan.outerHTML = `<input type="text" id="edit-bdesc-${id}" value="${esc(currentDesc)}" style="width:210px">`
+
+  const btn = row.querySelector('.inline-edit')
+  btn.innerHTML = `
+    <button class="btn btn-sm btn-primary" onclick="saveBatch('${id}')">${ic('check')} Simpan</button>
+    <button class="btn btn-sm btn-ghost" onclick="renderBatches()">${ic('x')} Batal</button>
+  `
+}
+
+async function saveBatch(id) {
+  const name = document.getElementById(`edit-bname-${id}`).value.trim()
+  const desc = document.getElementById(`edit-bdesc-${id}`).value.trim()
+  if (!name) return
+  await API.updateBatch(id, name, desc)
+  toast('Perubahan gelombang disimpan.')
+  renderBatches()
+}
+
+async function deleteBatch(id) {
+  const name = document.getElementById(`bname-${id}`)?.textContent || ''
+  const ok = await confirmDialog({
+    title: 'Hapus gelombang?',
+    message: `Gelombang "${name}" akan dihapus. Kelompok di dalamnya tetap ada namun tidak lagi tergelombang.`,
+    confirmText: 'Hapus',
+  })
+  if (!ok) return
+  await API.deleteBatch(id)
+  toast('Gelombang dihapus.')
+  renderBatches()
+  renderGroups()
+  renderMembers()
+}
+
 // ── Groups ──
 async function renderGroups() {
   const el = document.getElementById('tab-groups')
-  const groups = await API.getGroups()
+  const [groups, batches] = await Promise.all([API.getGroups(), API.getBatches()])
+  window._batches = batches
+
+  const groupRow = g => `
+    <tr>
+      <td>
+        <div class="cell-main">
+          <span class="avatar" style="background:${colorFor(g.id)}">${initials(g.name)}</span>
+          <span class="cell-title" id="gname-${g.id}" data-batch="${g.batch_id || ''}">${esc(g.name)}</span>
+        </div>
+      </td>
+      <td class="muted"><span id="gdesc-${g.id}">${esc(g.description || '')}</span></td>
+      <td class="td-actions">
+        <div class="inline-edit">
+          <button class="btn btn-sm btn-ghost" onclick="editGroup('${g.id}')">${ic('edit')} Ubah</button>
+          <button class="btn btn-sm btn-ghost-danger" onclick="deleteGroup('${g.id}')">${ic('trash')} Hapus</button>
+        </div>
+      </td>
+    </tr>`
+
+  const section = (title, list) => `
+    <div class="card-head" style="margin-top:18px">
+      <div class="card-title">${title}</div>
+      <span class="badge badge-count">${list.length}</span>
+    </div>
+    <div class="table-scroll">
+      <table class="table">
+        <thead><tr><th>Nama</th><th>Deskripsi</th><th class="right">Aksi</th></tr></thead>
+        <tbody>${list.map(groupRow).join('')}</tbody>
+      </table>
+    </div>`
+
+  const batched = batches
+    .map(b => ({ title: esc(b.name), groups: groups.filter(g => g.batch_id === b.id) }))
+    .filter(x => x.groups.length > 0)
+  const unassigned = groups.filter(g => !g.batch_id)
+  const sections = [
+    ...batched.map(x => section(x.title, x.groups)),
+    ...(unassigned.length ? [section('Tanpa Gelombang', unassigned)] : []),
+  ].join('')
+
   el.innerHTML = `
     <div class="page-head">
       <div>
@@ -93,41 +249,20 @@ async function renderGroups() {
           <input type="text" id="groupNameInput" placeholder="cth. Kel1" autocomplete="off">
         </div>
         <div class="field">
+          <label for="groupBatchInput">Gelombang</label>
+          <select id="groupBatchInput">
+            <option value="">Tanpa gelombang</option>
+            ${batches.map(b => `<option value="${b.id}">${esc(b.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
           <label for="groupDescInput">Deskripsi (opsional)</label>
           <input type="text" id="groupDescInput" placeholder="cth. Kelompok 1 Putra" autocomplete="off">
         </div>
         <button class="btn btn-primary" onclick="createGroup()">${ic('plus')} Tambah</button>
       </div>
       <div class="panel-divider"></div>
-      ${groups.length ? `
-      <div class="card-head">
-        <div class="card-title">Daftar kelompok</div>
-        <span class="badge badge-count">${groups.length}</span>
-      </div>
-      <div class="table-scroll">
-        <table class="table">
-          <thead><tr><th>Nama</th><th>Deskripsi</th><th class="right">Aksi</th></tr></thead>
-          <tbody>
-            ${groups.map(g => `
-              <tr>
-                <td>
-                  <div class="cell-main">
-                    <span class="avatar" style="background:${colorFor(g.id)}">${initials(g.name)}</span>
-                    <span class="cell-title" id="gname-${g.id}">${esc(g.name)}</span>
-                  </div>
-                </td>
-                <td class="muted"><span id="gdesc-${g.id}">${esc(g.description || '')}</span></td>
-                <td class="td-actions">
-                  <div class="inline-edit">
-                    <button class="btn btn-sm btn-ghost" onclick="editGroup('${g.id}')">${ic('edit')} Ubah</button>
-                    <button class="btn btn-sm btn-ghost-danger" onclick="deleteGroup('${g.id}')">${ic('trash')} Hapus</button>
-                  </div>
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>` : `<div class="empty">
+      ${groups.length ? sections : `<div class="empty">
         <span class="empty-icon">${ic('users')}</span>
         Belum ada kelompok. <span class="muted">Buat kelompok pertama di atas.</span>
       </div>`}
@@ -137,10 +272,12 @@ async function renderGroups() {
 
 async function createGroup() {
   const name = document.getElementById('groupNameInput').value.trim()
+  const batchId = document.getElementById('groupBatchInput').value
   const desc = document.getElementById('groupDescInput').value.trim()
   if (!name) { toast('Nama kelompok wajib diisi.', 'error'); return }
-  await API.createGroup(name, desc)
+  await API.createGroup(name, desc, batchId)
   document.getElementById('groupNameInput').value = ''
+  document.getElementById('groupBatchInput').value = ''
   document.getElementById('groupDescInput').value = ''
   toast('Kelompok berhasil ditambahkan.')
   renderGroups()
@@ -154,9 +291,18 @@ async function editGroup(id) {
   const row = nameSpan.closest('tr')
   const currentName = nameSpan.textContent
   const currentDesc = descSpan.textContent
+  const currentBatch = nameSpan.dataset.batch || ''
 
   nameSpan.outerHTML = `<input type="text" id="edit-gname-${id}" value="${esc(currentName)}" style="width:170px">`
-  descSpan.outerHTML = `<input type="text" id="edit-gdesc-${id}" value="${esc(currentDesc)}" style="width:210px">`
+  descSpan.outerHTML = `
+    <input type="text" id="edit-gdesc-${id}" value="${esc(currentDesc)}" style="width:160px">
+    <select id="edit-gbatch-${id}" style="width:auto;margin-left:8px">
+      <option value="">Tanpa gelombang</option>
+      ${(window._batches || []).map(b => `
+        <option value="${b.id}" ${b.id === currentBatch ? 'selected' : ''}>${esc(b.name)}</option>
+      `).join('')}
+    </select>
+  `
 
   const btn = row.querySelector('.inline-edit')
   btn.innerHTML = `
@@ -168,8 +314,9 @@ async function editGroup(id) {
 async function saveGroup(id) {
   const name = document.getElementById(`edit-gname-${id}`).value.trim()
   const desc = document.getElementById(`edit-gdesc-${id}`).value.trim()
+  const batchId = document.getElementById(`edit-gbatch-${id}`)?.value || null
   if (!name) return
-  await API.updateGroup(id, name, desc)
+  await API.updateGroup(id, name, desc, batchId)
   toast('Perubahan kelompok disimpan.')
   renderGroups()
 }
@@ -192,8 +339,9 @@ async function deleteGroup(id) {
 // ── Members ──
 async function renderMembers() {
   const el = document.getElementById('tab-members')
-  const [groups, members] = await Promise.all([API.getGroups(), API.getMembers()])
+  const [groups, members, batches] = await Promise.all([API.getGroups(), API.getMembers(), API.getBatches()])
   window._groups = groups
+  window._batches = batches
 
   el.innerHTML = `
     <div class="page-head">
@@ -214,7 +362,7 @@ async function renderMembers() {
           <label for="memberGroupInput">Kelompok</label>
           <select id="memberGroupInput">
             <option value="">Pilih kelompok...</option>
-            ${groups.map(g => `<option value="${g.id}">${esc(g.name)}</option>`).join('')}
+            ${groupOptionsHTML('', groups, batches)}
           </select>
         </div>
         <button class="btn btn-primary" onclick="createMember()">${ic('plus')} Tambah</button>
@@ -228,47 +376,116 @@ async function renderMembers() {
         </div>
       </div>
       <div id="memberGroupsContainer">
-        ${groups.map(g => {
-    const gMembers = members.filter(m => m.group_id === g.id)
+        ${batches.map(b => {
+    const bGroups = groups.filter(g => g.batch_id === b.id)
+    if (bGroups.length === 0) return ''
+    const bCount = bGroups.reduce((n, g) => n + members.filter(m => m.group_id === g.id).length, 0)
     return `
-          <details class="group-details">
-            <summary class="group-summary">
-              <span class="chev">${ic('chevron')}</span>
-              <span class="avatar xs" style="background:${colorFor(g.id)}">${initials(g.name)}</span>
-              <span class="group-title">${esc(g.name)}</span>
-              <span class="group-count">${gMembers.length}</span>
-            </summary>
-            ${gMembers.length ? `
-            <div class="table-scroll">
-              <table class="table">
-                <thead><tr><th>Anggota</th><th class="right">Aksi</th></tr></thead>
-                <tbody id="mgroup-${g.id}">
-                  ${gMembers.map(m => `
-                  <tr class="member-row-stub" data-name="${m.nickname.toLowerCase()}">
-                    <td>
-                      <div class="cell-main">
-                        <span class="avatar xs" style="background:${colorFor(m.group_id)}">${initials(m.nickname)}</span>
-                        <span class="cell-title" id="mname-${m.id}" data-group-id="${m.group_id}">${esc(m.nickname)}</span>
-                      </div>
-                    </td>
-                    <td class="td-actions">
-                      <div class="inline-edit">
-                        <button class="btn btn-sm btn-ghost" onclick="editMember('${m.id}')">${ic('edit')} Ubah</button>
-                        <button class="btn btn-sm btn-ghost-danger" onclick="deleteMember('${m.id}')">${ic('trash')} Hapus</button>
-                      </div>
-                    </td>
-                  </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            </div>` : `
-            <div class="empty" style="padding:12px">
-              <span class="empty-icon" style="width:36px;height:36px">${ic('users')}</span>
-              Belum ada anggota di kelompok ini.
-            </div>`}
-          </details>
-        `
+      <details class="group-details batch-details" open>
+        <summary class="group-summary">
+          <span class="chev">${ic('chevron')}</span>
+          <span class="avatar xs" style="background:${colorFor(b.id)}">${initials(b.name)}</span>
+          <span class="group-title">${esc(b.name)}</span>
+          <span class="group-count">${bCount}</span>
+        </summary>
+        <div class="batch-groups">
+          ${bGroups.map(g => {
+      const gMembers = members.filter(m => m.group_id === g.id)
+      return `
+            <details class="group-details">
+              <summary class="group-summary">
+                <span class="chev">${ic('chevron')}</span>
+                <span class="avatar xs" style="background:${colorFor(g.id)}">${initials(g.name)}</span>
+                <span class="group-title">${esc(g.name)}</span>
+                <span class="group-count">${gMembers.length}</span>
+              </summary>
+              ${gMembers.length ? `
+              <div class="table-scroll">
+                <table class="table">
+                  <thead><tr><th>Anggota</th><th class="right">Aksi</th></tr></thead>
+                  <tbody id="mgroup-${g.id}">
+                    ${gMembers.map(m => `
+                    <tr class="member-row-stub" data-name="${m.nickname.toLowerCase()}">
+                      <td>
+                        <div class="cell-main">
+                          <span class="avatar xs" style="background:${colorFor(m.group_id)}">${initials(m.nickname)}</span>
+                          <span class="cell-title" id="mname-${m.id}" data-group-id="${m.group_id}">${esc(m.nickname)}</span>
+                        </div>
+                      </td>
+                      <td class="td-actions">
+                        <div class="inline-edit">
+                          <button class="btn btn-sm btn-ghost" onclick="editMember('${m.id}')">${ic('edit')} Ubah</button>
+                          <button class="btn btn-sm btn-ghost-danger" onclick="deleteMember('${m.id}')">${ic('trash')} Hapus</button>
+                        </div>
+                      </td>
+                    </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>` : `
+              <div class="empty" style="padding:12px">
+                <span class="empty-icon" style="width:36px;height:36px">${ic('users')}</span>
+                Belum ada anggota di kelompok ini.
+              </div>`}
+            </details>
+          `
+    }).join('')}
+        </div>
+      </details>
+    `
   }).join('')}
+        ${groups.filter(g => !g.batch_id).length ? `
+        <details class="group-details batch-details" open>
+          <summary class="group-summary">
+            <span class="chev">${ic('chevron')}</span>
+            <span class="avatar xs" style="background:var(--muted)">${initials('Tanpa Gelombang')}</span>
+            <span class="group-title">Tanpa Gelombang</span>
+            <span class="group-count">${groups.filter(g => !g.batch_id).length}</span>
+          </summary>
+          <div class="batch-groups">
+            ${groups.filter(g => !g.batch_id).map(g => {
+      const gMembers = members.filter(m => m.group_id === g.id)
+      return `
+              <details class="group-details">
+                <summary class="group-summary">
+                  <span class="chev">${ic('chevron')}</span>
+                  <span class="avatar xs" style="background:${colorFor(g.id)}">${initials(g.name)}</span>
+                  <span class="group-title">${esc(g.name)}</span>
+                  <span class="group-count">${gMembers.length}</span>
+                </summary>
+                ${gMembers.length ? `
+                <div class="table-scroll">
+                  <table class="table">
+                    <thead><tr><th>Anggota</th><th class="right">Aksi</th></tr></thead>
+                    <tbody id="mgroup-${g.id}">
+                      ${gMembers.map(m => `
+                      <tr class="member-row-stub" data-name="${m.nickname.toLowerCase()}">
+                        <td>
+                          <div class="cell-main">
+                            <span class="avatar xs" style="background:${colorFor(m.group_id)}">${initials(m.nickname)}</span>
+                            <span class="cell-title" id="mname-${m.id}" data-group-id="${m.group_id}">${esc(m.nickname)}</span>
+                          </div>
+                        </td>
+                        <td class="td-actions">
+                          <div class="inline-edit">
+                            <button class="btn btn-sm btn-ghost" onclick="editMember('${m.id}')">${ic('edit')} Ubah</button>
+                            <button class="btn btn-sm btn-ghost-danger" onclick="deleteMember('${m.id}')">${ic('trash')} Hapus</button>
+                          </div>
+                        </td>
+                      </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
+                </div>` : `
+                <div class="empty" style="padding:12px">
+                  <span class="empty-icon" style="width:36px;height:36px">${ic('users')}</span>
+                  Belum ada anggota di kelompok ini.
+                </div>`}
+              </details>
+            `
+    }).join('')}
+          </div>
+        </details>` : ''}
       </div>
     </div>
   `
@@ -309,9 +526,7 @@ async function editMember(id) {
   nameSpan.outerHTML = `
     <input type="text" id="edit-mname-${id}" value="${esc(currentName)}" style="width:150px">
     <select id="edit-mgroup-${id}" style="width:auto;margin-left:8px">
-      ${window._groups ? window._groups.map(g => `
-        <option value="${g.id}" ${g.id === currentGroup ? 'selected' : ''}>${esc(g.name)}</option>
-      `).join('') : ''}
+      ${groupOptionsHTML(currentGroup, window._groups, window._batches)}
     </select>
   `
 
@@ -320,6 +535,27 @@ async function editMember(id) {
     <button class="btn btn-sm btn-primary" onclick="saveMember('${id}')">${ic('check')} Simpan</button>
     <button class="btn btn-sm btn-ghost" onclick="renderMembers()">${ic('x')} Batal</button>
   `
+}
+
+function groupOptionsHTML(selected, groups, batches) {
+  batches = batches || []
+  groups = groups || []
+  const byBatch = batches
+    .map(b => ({ label: esc(b.name), groups: groups.filter(g => g.batch_id === b.id) }))
+    .filter(x => x.groups.length > 0)
+  const unassigned = groups.filter(g => !g.batch_id)
+  let html = ''
+  for (const { label, groups: list } of byBatch) {
+    html += `<optgroup label="${label}">${list.map(g =>
+      `<option value="${g.id}" ${g.id === selected ? 'selected' : ''}>${esc(g.name)}</option>`
+    ).join('')}</optgroup>`
+  }
+  if (unassigned.length) {
+    html += `<optgroup label="Tanpa Gelombang">${unassigned.map(g =>
+      `<option value="${g.id}" ${g.id === selected ? 'selected' : ''}>${esc(g.name)}</option>`
+    ).join('')}</optgroup>`
+  }
+  return html
 }
 
 async function saveMember(id) {

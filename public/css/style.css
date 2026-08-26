@@ -307,6 +307,10 @@ textarea { resize: vertical; min-height: 64px; }
 .group-details { margin-top: 6px; }
 .card > .group-details + .group-details,
 #memberGroupsContainer .group-details + .group-details { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+#memberGroupsContainer .batch-details + .batch-details { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.batch-groups { margin-top: 4px; margin-left: 8px; padding-left: 12px; border-left: 2px solid var(--border); }
+.batch-groups .group-details { margin-top: 10px; }
+.batch-groups .group-details + .group-details { margin-top: 10px; }
 
 .group-summary {
   cursor: pointer; list-style: none; user-select: none;

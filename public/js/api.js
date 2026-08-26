@@ -35,10 +35,16 @@ const API = {
     return this.request('GET', '/api/auth/verify')
   },
 
+  // Batches (gelombang)
+  getBatches() { return this.request('GET', '/api/batches') },
+  createBatch(name, description) { return this.request('POST', '/api/batches', { name, description }) },
+  updateBatch(id, name, description) { return this.request('PUT', `/api/batches/${id}`, { name, description }) },
+  deleteBatch(id) { return this.request('DELETE', `/api/batches/${id}`) },
+
   // Groups
   getGroups() { return this.request('GET', '/api/groups') },
-  createGroup(name, description) { return this.request('POST', '/api/groups', { name, description }) },
-  updateGroup(id, name, description) { return this.request('PUT', `/api/groups/${id}`, { name, description }) },
+  createGroup(name, description, batchId) { return this.request('POST', '/api/groups', { name, description, batch_id: batchId || null }) },
+  updateGroup(id, name, description, batchId) { return this.request('PUT', `/api/groups/${id}`, { name, description, batch_id: batchId || null }) },
   deleteGroup(id) { return this.request('DELETE', `/api/groups/${id}`) },
 
   // Members

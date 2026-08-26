@@ -10,7 +10,9 @@ export async function onRequestPut(context) {
   try {
     const supabase = getSupabase(env)
     const body = await request.json()
-    const data = await supabase.update('groups', params.id, { name: body.name, description: body.description }, { select: '*', single: true })
+    const updates = { name: body.name, description: body.description }
+    if (body.batch_id !== undefined) updates.batch_id = body.batch_id || null
+    const data = await supabase.update('groups', params.id, updates, { select: '*', single: true })
     return new Response(JSON.stringify(data), { status: 200, headers: { 'Content-Type': 'application/json' } })
   } catch (e) {
     return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json' } })

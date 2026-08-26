@@ -29,7 +29,9 @@ Browser → Cloudflare Pages
 | `functions/_utils/supabase.js` | Custom Supabase REST client | `getSupabase(env)` returns object with `.select()`, `.insert()`, `.update()`, `.updateBy()`, `.delete()`, `.upsert()` |
 | `functions/api/auth/login.js` | Admin auth | `onRequestPost` — validates credentials against env vars, returns JWT |
 | `functions/api/auth/verify.js` | JWT validation | `onRequestGet` — returns 200 if valid JWT |
-| `functions/api/groups/index.js` | Groups CRUD | `onRequestGet`, `onRequestPost` |
+| `functions/api/batches/index.js` | Batches (gelombang) CRUD | `onRequestGet`, `onRequestPost` |
+| `functions/api/batches/[id].js` | Batch by ID | `onRequestPut`, `onRequestDelete` |
+| `functions/api/groups/index.js` | Groups CRUD | `onRequestGet` (joins `batches(name)`), `onRequestPost` (accepts `batch_id`) |
 | `functions/api/groups/[id].js` | Group by ID | `onRequestPut`, `onRequestDelete` |
 | `functions/api/members/index.js` | Members CRUD | `onRequestGet` (supports `?group_id=` filter with join), `onRequestPost` |
 | `functions/api/members/[id].js` | Member by ID | `onRequestPut`, `onRequestDelete` |
@@ -59,14 +61,16 @@ Browser → Cloudflare Pages
 | File | Purpose |
 |------|---------|
 | `schema.sql` | Full database DDL (5 tables with FK constraints, CHECK constraints, UNIQUE tuples) |
-| `seed.sql` | Seed data with 7 groups and ~90 members |
+| `seed.sql` | Seed data with 2 batches, 7 groups and ~90 members |
 | `PLAN.md` | Original project plan and design document |
 
 ## Database Schema
 
-5 tables in Supabase PostgreSQL:
+6 tables in Supabase PostgreSQL:
 
-**`groups`** — `id UUID PK`, `name TEXT NOT NULL`, `description TEXT`, `created_at TIMESTAMPTZ`
+**`batches`** — `id UUID PK`, `name TEXT NOT NULL`, `description TEXT`, `created_at TIMESTAMPTZ`
+
+**`groups`** — `id UUID PK`, `name TEXT NOT NULL`, `description TEXT`, `batch_id UUID → batches(id) ON DELETE SET NULL`, `created_at TIMESTAMPTZ`
 
 **`members`** — `id UUID PK`, `nickname TEXT NOT NULL`, `group_id UUID NOT NULL → groups(id) ON DELETE CASCADE`, `created_at TIMESTAMPTZ`
 
