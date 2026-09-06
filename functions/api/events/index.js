@@ -1,5 +1,6 @@
 import { requireAuth } from '../../_utils/auth'
 import { getSupabase } from '../../_utils/supabase'
+import { serializeRepeatDays } from '../../_utils/recurrence'
 
 export async function onRequestGet(context) {
   const { request, env } = context
@@ -25,6 +26,7 @@ export async function onRequestPost(context) {
   try {
     const supabase = getSupabase(env)
     const body = await request.json()
+    const repeat = serializeRepeatDays(body.repeat_type || 'none', body.repeat_days)
     const data = await supabase.insert('events', {
       name: body.name,
       date: body.date,
@@ -32,6 +34,8 @@ export async function onRequestPost(context) {
       end_time: body.end_time || null,
       location: body.location || '',
       description: body.description || '',
+      repeat_type: repeat.repeat_type,
+      repeat_days: repeat.repeat_days,
     }, { select: '*', single: true })
     return new Response(JSON.stringify(data), { status: 201, headers: { 'Content-Type': 'application/json' } })
   } catch (e) {

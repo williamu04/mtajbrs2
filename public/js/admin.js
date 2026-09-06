@@ -33,11 +33,84 @@ function initials(name) {
   return parts[0][0].toUpperCase()
 }
 
-function eventStatus(dateStr) {
-  const today = new Date().toISOString().slice(0, 10)
-  if (dateStr === today) return { label: 'Hari ini', cls: 'badge-today' }
-  if (dateStr > today) return { label: 'Akan datang', cls: 'badge-future' }
-  return { label: 'Selesai', cls: 'badge-done' }
+const DAY_INFO = [
+  { n: 1, short: 'Sen', full: 'Senin' },
+  { n: 2, short: 'Sel', full: 'Selasa' },
+  { n: 3, short: 'Rab', full: 'Rabu' },
+  { n: 4, short: 'Kam', full: 'Kamis' },
+  { n: 5, short: 'Jum', full: 'Jumat' },
+  { n: 6, short: 'Sab', full: 'Sabtu' },
+  { n: 0, short: 'Aha', full: 'Ahad' },
+]
+
+function parseRepeatDays(daysStr) {
+  return String(daysStr || '')
+    .split(',')
+    .map(s => parseInt(s, 10))
+    .filter(n => Number.isInteger(n) && n >= 0 && n <= 6)
+}
+
+function isDaily(repeatType, daysStr) {
+  if (repeatType !== 'weekly') return false
+  const days = parseRepeatDays(daysStr)
+  return days.length === 7
+}
+
+function repeatDaysForDisplay(repeatType, daysStr) {
+  if (repeatType !== 'weekly') return []
+  const days = parseRepeatDays(daysStr)
+  if (days.length === 0 || days.length === 7) return days
+  return [...DAY_INFO.filter(d => days.includes(d.n)).map(d => d.n)]
+}
+
+function repeatText(e) {
+  if (e.repeat_type !== 'weekly') return null
+  if (isDaily(e.repeat_type, e.repeat_days)) return 'Setiap hari'
+  const days = repeatDaysForDisplay(e.repeat_type, e.repeat_days)
+  const names = days.map(n => (DAY_INFO.find(d => d.n === n) || {}).full).filter(Boolean)
+  return names.length ? 'Setiap ' + names.join(', ') : null
+}
+
+function addDaysISO(dateStr, days) {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const dt = new Date(Date.UTC(y, m - 1, d))
+  dt.setUTCDate(dt.getUTCDate() + days)
+  return dt.toISOString().slice(0, 10)
+}
+
+function todayWIB() {
+  return new Date(Date.now() - 25200000).toISOString().slice(0, 10)
+}
+
+function occurrenceDate(e, today) {
+  if (e.repeat_type !== 'weekly') return e.date
+  const days = parseRepeatDays(e.repeat_days)
+  if (days.length === 0) return e.date
+  for (let i = 0; i <= 7; i++) {
+    const cand = addDaysISO(today, i)
+    const [y, m, d] = cand.split('-').map(Number)
+    if (days.includes(new Date(Date.UTC(y, m - 1, d)).getUTCDay())) return cand
+  }
+  return e.date
+}
+
+function eventStatusOf(e, today) {
+  const occ = occurrenceDate(e, today)
+  if (occ === today) return { label: 'Hari ini', cls: 'badge-today', date: occ }
+  if (occ > today) return { label: 'Akan datang', cls: 'badge-future', date: occ }
+  return { label: 'Selesai', cls: 'badge-done', date: occ }
+}
+
+function recapDate(e, today) {
+  if (e.repeat_type !== 'weekly') return e.date
+  const days = parseRepeatDays(e.repeat_days)
+  if (days.length === 0) return e.date
+  for (let i = 0; i <= 7; i++) {
+    const cand = addDaysISO(today, -i)
+    const [y, m, d] = cand.split('-').map(Number)
+    if (days.includes(new Date(Date.UTC(y, m - 1, d)).getUTCDay())) return cand
+  }
+  return occurrenceDate(e, today)
 }
 
 // ── Tab switching ──
@@ -584,8 +657,9 @@ async function deleteMember(id) {
 async function renderEvents() {
   const el = document.getElementById('tab-events')
   const [events, groups, batches] = await Promise.all([API.getEvents(), API.getGroups(), API.getBatches()])
+  window._events = events
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayWIB()
 
   const pillCheckboxes = list => list.map(g => `
     <input type="checkbox" class="pill-input" id="gc-${g.id}" value="${g.id}">
@@ -620,7 +694,7 @@ async function renderEvents() {
       </div>
     </div>
 
-    <div class="card">
+      <div class="card">
       <div class="card-title">Buat kegiatan baru</div>
       <div class="card-desc">Pilih kelompok yang diundang untuk mengisi kehadiran.</div>
       <div class="form-grid" style="margin-top:14px">
@@ -629,9 +703,20 @@ async function renderEvents() {
           <input type="text" id="eventNameInput" placeholder="cth. Kajian Rutin Gelombang Remaja" autocomplete="off">
         </div>
         <div class="field">
-          <label for="eventDateInput">Tanggal</label>
+          <label for="eventDateInput">Mulai tanggal</label>
           <input type="date" id="eventDateInput" value="${today}">
         </div>
+      </div>
+      <div class="field" style="margin-top:10px">
+        <label>Ulangi setiap minggu (opsional)</label>
+        <div class="repeat-pills" id="eventRepeatDays">
+          ${DAY_INFO.map(d => `
+            <input type="checkbox" class="pill-input" data-day="${d.n}" id="rd-${d.n}">
+            <label class="pill-check" for="rd-${d.n}"><span>${d.full}</span></label>`).join('')}
+          <button type="button" class="btn btn-xs btn-ghost" id="repeatEveryDay" onclick="setRepeatEveryDay()">Setiap hari</button>
+          <button type="button" class="btn btn-xs btn-ghost" id="repeatClear" onclick="clearRepeatDays()">Sekali saja</button>
+        </div>
+        <div class="text-sm muted" style="margin-top:6px">Tautan kehadiran tetap sama dan dipakai ulang tiap hari yang dipilih. Kosongkan untuk kegiatan sekali saja.</div>
       </div>
       <div class="form-grid" style="margin-top:4px">
         <div class="field">
@@ -666,10 +751,13 @@ async function renderEvents() {
     </div>
     ${events.length ? `<div id="eventList">
       ${events.map(e => {
-    const st = eventStatus(e.date)
+    const occ = occurrenceDate(e, today)
+    const rc = recapDate(e, today)
+    const st = eventStatusOf(e, today)
     const timeStr = e.start_time
       ? `${e.start_time.slice(0, 5)}${e.end_time ? ' - ' + e.end_time.slice(0, 5) : ''}`
       : ''
+    const repText = repeatText(e)
     return `
       <div class="event-row">
         <div class="event-row-head">
@@ -678,6 +766,7 @@ async function renderEvents() {
             <div>
               <div class="event-title" id="ename-${e.id}">${esc(e.name)}</div>
               <span class="badge ${st.cls}">${st.label}</span>
+              ${repText ? `<span class="badge badge-repeat">${repText}</span>` : ''}
             </div>
           </div>
           <div class="inline-edit">
@@ -686,13 +775,13 @@ async function renderEvents() {
           </div>
         </div>
         <div class="event-row-meta">
-          <span class="meta-chip">${ic('calendar')} <span class="val" id="edate-${e.id}">${e.date}</span></span>
+          <span class="meta-chip">${ic('calendar')} <span class="val" id="edate-${e.id}">${occ}${e.repeat_type === 'weekly' ? ' (berikutnya)' : ''}</span></span>
           <span class="meta-chip">${ic('clock')} <span class="val" id="etime-${e.id}">${timeStr}</span></span>
           <span class="meta-chip">${ic('map-pin')} <span class="val" id="eloc-${e.id}">${esc(e.location || '')}</span></span>
         </div>
         <div class="event-row-links">
           <button class="btn btn-sm btn-ghost" onclick="copyLink('${e.id}')">${ic('link')} Salin tautan kehadiran</button>
-          <a class="btn btn-sm btn-outline" href="recap.html?event=${e.id}" target="_blank" rel="noopener">${ic('chart')} Lihat rekap</a>
+          <a class="btn btn-sm btn-outline" href="recap.html?event=${e.id}&date=${rc}" target="_blank" rel="noopener">${ic('chart')} Lihat rekap</a>
         </div>
       </div>`
   }).join('')}
@@ -716,7 +805,10 @@ async function addEvent() {
   const checkedBoxes = document.querySelectorAll('#eventGroupCheckboxes input[type="checkbox"]:checked')
   const groupIds = Array.from(checkedBoxes).map(cb => cb.value)
 
-  const event = await API.createEvent(name, date, startTime, endTime, location, description)
+  const repeatDays = getRepeatDaySelection()
+  const repeatType = repeatDays.length ? 'weekly' : 'none'
+
+  const event = await API.createEvent(name, date, startTime, endTime, location, description, repeatType, repeatDays)
   if (groupIds.length > 0) {
     await API.setEventGroups(event.id, groupIds)
   }
@@ -726,9 +818,23 @@ async function addEvent() {
   document.getElementById('eventEndInput').value = ''
   document.getElementById('eventLocInput').value = ''
   document.getElementById('eventDescInput').value = ''
+  clearRepeatDays()
   checkedBoxes.forEach(cb => cb.checked = false)
   toast('Kegiatan berhasil dibuat.')
   renderEvents()
+}
+
+function getRepeatDaySelection() {
+  return Array.from(document.querySelectorAll('#eventRepeatDays input[data-day]:checked'))
+    .map(cb => parseInt(cb.dataset.day, 10))
+}
+
+function setRepeatEveryDay() {
+  document.querySelectorAll('#eventRepeatDays input[data-day]').forEach(cb => cb.checked = true)
+}
+
+function clearRepeatDays() {
+  document.querySelectorAll('#eventRepeatDays input[data-day]').forEach(cb => cb.checked = false)
 }
 
 async function editEvent(id) {
@@ -741,11 +847,20 @@ async function editEvent(id) {
   const timeText = timeEl.textContent
   const [startStr, endStr] = timeText.includes(' - ') ? timeText.split(' - ') : [timeText, '']
 
+  const ev = (window._events || []).find(x => x.id === id) || {}
+  const repeatDays = ev.repeat_type === 'weekly' ? parseRepeatDays(ev.repeat_days) : []
+
   nameEl.outerHTML = `
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <input type="text" id="edit-ename-${id}" value="${esc(nameEl.textContent)}" style="width:170px">
       <label class="sr-only" for="edit-edate-${id}">Tanggal</label>
-      <input type="date" id="edit-edate-${id}" value="${dateEl.textContent}" style="width:170px">
+      <input type="date" id="edit-edate-${id}" value="${ev.date || dateEl.textContent}" style="width:170px">
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px" id="edit-rep-${id}">
+      <span class="text-sm muted">Ulangi:</span>
+      ${DAY_INFO.map(d => `
+        <input type="checkbox" class="pill-input" data-day="${d.n}" id="erd-${id}-${d.n}" ${repeatDays.includes(d.n) ? 'checked' : ''}>
+        <label class="pill-check" for="erd-${id}-${d.n}"><span>${d.full}</span></label>`).join('')}
     </div>`
   locEl.outerHTML = `<input type="text" id="edit-eloc-${id}" value="${esc(locEl.textContent)}" placeholder="Lokasi" style="width:160px">`
   timeEl.outerHTML = `
@@ -766,8 +881,11 @@ async function saveEvent(id) {
   const startTime = document.getElementById(`edit-estart-${id}`)?.value || null
   const endTime = document.getElementById(`edit-eend-${id}`)?.value || null
   const location = document.getElementById(`edit-eloc-${id}`).value.trim()
+  const repeatDays = Array.from(document.querySelectorAll(`#edit-rep-${id} input[data-day]:checked`))
+    .map(cb => parseInt(cb.dataset.day, 10))
+  const repeatType = repeatDays.length ? 'weekly' : 'none'
   if (!name || !date) return
-  await API.updateEvent(id, name, date, startTime, endTime, location, '')
+  await API.updateEvent(id, name, date, startTime, endTime, location, '', repeatType, repeatDays)
   toast('Perubahan kegiatan disimpan.')
   renderEvents()
 }

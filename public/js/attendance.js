@@ -43,7 +43,7 @@ function initials(name) {
   }
 
   const navRecap = document.getElementById('navRecap')
-  if (navRecap) { navRecap.href = `recap.html?event=${eventId}`; navRecap.hidden = false }
+  if (navRecap) { navRecap.href = `#!`; navRecap.hidden = false }
 
   try {
     const data = await API.getAttendance(eventId)
@@ -56,26 +56,62 @@ function initials(name) {
   }
 })()
 
+let _attendanceState = null
+
+function isInWindowNow(state) {
+  const { event, occurrence_date, scheduled } = state
+  if (!scheduled || !event.start_time) return !!scheduled
+  const [y, m, d] = occurrence_date.split('-').map(Number)
+  const [sh, sm] = event.start_time.split(':').map(Number)
+  const now = Date.now()
+  const start = new Date(Date.UTC(y, m - 1, d, sh, sm)) - 25200000
+  const end = event.end_time
+    ? (() => { const [eh, em] = event.end_time.split(':'); return new Date(Date.UTC(y, m - 1, d, +eh, +em)) - 25200000 })()
+    : new Date(Date.UTC(y, m - 1, d, 23, 59) - 25200000)
+  return now >= start && now <= end
+}
+
+function syncTimeWindow() {
+  if (!_attendanceState) return
+  const open = isInWindowNow(_attendanceState)
+  const submitBtn = document.querySelector('#attendanceForm button[type="submit"]')
+  if (submitBtn) submitBtn.style.display = open ? '' : 'none'
+  document.querySelectorAll('#attendanceForm input[type="radio"], #attendanceForm .notes-input').forEach(el => {
+    el.disabled = !open
+  })
+  const heroNote = document.getElementById('windowNote')
+  if (heroNote) heroNote.style.display = open ? 'none' : ''
+}
+
 function renderAttendance(data, eventId) {
   const content = document.getElementById('attendanceContent')
-  const { event, groups } = data
+  const { event, groups, occurrence_date, scheduled, in_window } = data
+
+  _attendanceState = { event, occurrence_date, scheduled, in_window }
 
   const timeStr = event.start_time
     ? `${event.start_time.slice(0, 5)}${event.end_time ? ' - ' + event.end_time.slice(0, 5) : ''}`
     : ''
-  const inWindow = isInTimeWindow(event)
+
+  const navRecap = document.getElementById('navRecap')
+  if (navRecap && occurrence_date) {
+    navRecap.href = `recap.html?event=${eventId}&date=${occurrence_date}`
+    navRecap.hidden = false
+  }
 
   let html = `
     <div class="event-hero">
       <div class="hero-eyebrow">Kehadiran Kegiatan</div>
       <h1>${esc(event.name)}</h1>
       <div class="event-meta">
-        <span class="hero-chip">${ic('calendar')} ${event.date}</span>
+        <span class="hero-chip">${ic('calendar')} ${occurrence_date || event.date}</span>
         ${timeStr ? `<span class="hero-chip">${ic('clock')} ${timeStr}</span>` : ''}
         ${event.location ? `<span class="hero-chip">${ic('map-pin')} ${esc(event.location)}</span>` : ''}
       </div>
-      ${(!inWindow && event.start_time) ? `
-      <div class="hero-note">${ic('alert')} Di luar jadwal kegiatan. Kehadiran dapat diisi saat kegiatan berlangsung.</div>` : ''}
+      ${(scheduled && event.start_time && !in_window) ? `
+      <div class="hero-note" id="windowNote">${ic('alert')} Di luar jadwal kegiatan. Kehadiran dapat diisi saat kegiatan berlangsung.</div>` : ''}
+      ${(!scheduled) ? `
+      <div class="hero-note" id="windowNote">${ic('alert')} Kegiatan tidak dijadwalkan pada tanggal ${occurrence_date || ''}. Kehadiran hanya dapat diisi pada hari jadwal berlangsung.</div>` : ''}
     </div>
   `
 
@@ -85,6 +121,15 @@ function renderAttendance(data, eventId) {
     html += `<div class="card"><div class="empty">
       <span class="empty-icon">${ic('alert')}</span>
       Tidak ada kelompok yang disertakan pada kegiatan ini.
+    </div></div>`
+    content.innerHTML = html
+    return
+  }
+
+  if (!scheduled) {
+    html += `<div class="card"><div class="empty">
+      <span class="empty-icon">${ic('calendar')}</span>
+      Belum ada sesi kehadiran untuk dibuka pada tanggal ini.
     </div></div>`
     content.innerHTML = html
     return
@@ -115,12 +160,12 @@ function renderAttendance(data, eventId) {
               </div>
               <div class="segmented" role="radiogroup" aria-label="Status ${esc(m.nickname)}">
                 ${['hadir', 'sakit', 'izin', 'alpha'].map(s => `
-                  <input type="radio" name="status-${m.id}" id="${s}-${m.id}" value="${s}" ${m.status === s ? 'checked' : ''}>
+                  <input type="radio" name="status-${m.id}" id="${s}-${m.id}" value="${s}" ${m.status === s ? 'checked' : ''} ${!in_window ? 'disabled' : ''}>
                   <label class="status-pill pill-${s}" for="${s}-${m.id}">${statusLabel(s)}</label>
                 `).join('')}
               </div>
               <div class="notes-wrap">
-                <input type="text" class="notes-input" placeholder="Catatan" value="${esc(m.notes || '')}" data-member="${m.id}" autocomplete="off">
+                <input type="text" class="notes-input" placeholder="Catatan" value="${esc(m.notes || '')}" data-member="${m.id}" autocomplete="off" ${!in_window ? 'disabled' : ''}>
               </div>
             </div>`).join('')}
           </div>
@@ -133,7 +178,7 @@ function renderAttendance(data, eventId) {
         <span class="mark-label">Terisi <b id="markCount">0</b> dari ${totalMembers}</span>
         <div class="mark-track"><div class="mark-fill" id="markFill"></div></div>
       </div>
-      ${inWindow ? `<button type="submit" class="btn btn-primary">${ic('check')} Simpan kehadiran</button>` : ''}
+      ${in_window ? `<button type="submit" class="btn btn-primary">${ic('check')} Simpan kehadiran</button>` : ''}
     </div>
   </form>`
 
@@ -166,18 +211,10 @@ function renderAttendance(data, eventId) {
 
   const form = document.getElementById('attendanceForm')
   if (form) form.addEventListener('submit', submitAttendance)
-}
 
-function isInTimeWindow(event) {
-  if (!event.start_time) return true
-  const now = new Date()
-  const [y, m, d] = event.date.split('-').map(Number)
-  const [sh, sm] = event.start_time.split(':').map(Number)
-  const start = new Date(y, m - 1, d, sh, sm)
-  const end = event.end_time
-    ? (() => { const [eh, em] = event.end_time.split(':'); return new Date(y, m - 1, d, +eh, +em) })()
-    : new Date(y, m - 1, d, 23, 59)
-  return now >= start && now <= end
+  syncTimeWindow()
+  if (window._attendanceTimer) clearInterval(window._attendanceTimer)
+  window._attendanceTimer = setInterval(syncTimeWindow, 30000)
 }
 
 async function submitAttendance(e) {

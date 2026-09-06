@@ -37,6 +37,7 @@ let _recapSort = { field: 'group', dir: 1 }
 ;(async () => {
   const params = new URLSearchParams(location.search)
   const eventId = params.get('event')
+  const date = params.get('date')
   const content = document.getElementById('recapContent')
 
   if (!eventId) {
@@ -51,7 +52,7 @@ let _recapSort = { field: 'group', dir: 1 }
   if (navAttendance) { navAttendance.href = `attendance.html?event=${eventId}`; navAttendance.hidden = false }
 
   try {
-    const data = await API.getAttendance(eventId)
+    const data = await API.getAttendance(eventId, date || undefined)
     renderRecap(data)
   } catch (err) {
     content.innerHTML = `<div class="card"><div class="empty">
@@ -63,7 +64,8 @@ let _recapSort = { field: 'group', dir: 1 }
 
 function renderRecap(data) {
   const content = document.getElementById('recapContent')
-  const { event, groups } = data
+  const { event, groups, occurrence_date } = data
+  const dateShown = occurrence_date || event.date
 
   const timeStr = event.start_time
     ? `${event.start_time.slice(0, 5)}${event.end_time ? ' - ' + event.end_time.slice(0, 5) : ''}`
@@ -89,14 +91,14 @@ function renderRecap(data) {
       <div class="hero-eyebrow">Rekapitulasi Kehadiran</div>
       <h1>${esc(event.name)}</h1>
       <div class="event-meta">
-        <span class="hero-chip">${ic('calendar')} ${event.date}</span>
+        <span class="hero-chip">${ic('calendar')} ${dateShown}</span>
         ${timeStr ? `<span class="hero-chip">${ic('clock')} ${timeStr}</span>` : ''}
         ${event.location ? `<span class="hero-chip">${ic('map-pin')} ${esc(event.location)}</span>` : ''}
       </div>
     </div>
 
     <div class="recap-toolbar">
-      <p>Rekap kehadiran menyeluruh untuk kegiatan ini.</p>
+      <p>Rekap kehadiran untuk tanggal ${dateShown}.</p>
       <button type="button" class="btn btn-sm btn-outline" onclick="window.print()">${ic('printer')} Cetak</button>
     </div>
 

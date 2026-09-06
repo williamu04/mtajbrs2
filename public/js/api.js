@@ -58,11 +58,11 @@ const API = {
 
   // Events
   getEvents() { return this.request('GET', '/api/events') },
-  createEvent(name, date, startTime, endTime, location, description) {
-    return this.request('POST', '/api/events', { name, date, start_time: startTime, end_time: endTime, location, description })
+  createEvent(name, date, startTime, endTime, location, description, repeatType, repeatDays) {
+    return this.request('POST', '/api/events', { name, date, start_time: startTime, end_time: endTime, location, description, repeat_type: repeatType || 'none', repeat_days: repeatDays || [] })
   },
-  updateEvent(id, name, date, startTime, endTime, location, description) {
-    return this.request('PUT', `/api/events/${id}`, { name, date, start_time: startTime, end_time: endTime, location, description })
+  updateEvent(id, name, date, startTime, endTime, location, description, repeatType, repeatDays) {
+    return this.request('PUT', `/api/events/${id}`, { name, date, start_time: startTime, end_time: endTime, location, description, repeat_type: repeatType || 'none', repeat_days: repeatDays || [] })
   },
   deleteEvent(id) { return this.request('DELETE', `/api/events/${id}`) },
 
@@ -74,8 +74,9 @@ const API = {
   getStats() { return this.request('GET', '/api/stats') },
 
   // Attendance (public)
-  async getAttendance(eventId) {
-    return fetch(`/api/attendance/${eventId}`).then(async r => {
+  async getAttendance(eventId, date) {
+    const qs = date ? `?date=${date}` : ''
+    return fetch(`/api/attendance/${eventId}${qs}`).then(async r => {
       const data = await r.json()
       if (!r.ok) throw new Error(data.error || 'Gagal memuat data')
       return data

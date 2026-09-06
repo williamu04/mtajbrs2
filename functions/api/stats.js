@@ -1,5 +1,6 @@
 import { requireAuth } from '../_utils/auth'
 import { getSupabase } from '../_utils/supabase'
+import { serverToday, countOccurrencesUpTo } from '../_utils/recurrence'
 
 export async function onRequestGet(context) {
   const { request, env } = context
@@ -10,11 +11,13 @@ export async function onRequestGet(context) {
   try {
     const supabase = getSupabase(env)
     const [events, groupEvents, members, attendance] = await Promise.all([
-      supabase.select('events', { order: 'date.desc' }),
+      supabase.select('events'),
       supabase.select('group_event'),
       supabase.select('members', { select: 'id, nickname, group_id' }),
-      supabase.select('member_event', { select: 'member_id, event_id, status' }),
+      supabase.select('member_event', { select: 'member_id, event_id, occurrence_date, status' }),
     ])
+
+    const today = serverToday()
 
     // Build group → members lookup
     const membersByGroup = {}
@@ -30,18 +33,20 @@ export async function onRequestGet(context) {
       eventGroupIds[ge.event_id].push(ge.group_id)
     }
 
-    // Compute event->total_members map
-    const eventTotalMembers = {}
+    // Compute event->total_members map (expected entries per occurrence)
+    const eventMemberCount = {}
+    const eventOccurrences = {}
     for (const e of events) {
       const gids = eventGroupIds[e.id] || []
       let total = 0
       for (const gid of gids) {
         total += (membersByGroup[gid] || []).length
       }
-      eventTotalMembers[e.id] = total
+      eventMemberCount[e.id] = total
+      eventOccurrences[e.id] = countOccurrencesUpTo(e, today)
     }
 
-    // Count attendance per event
+    // Count attendance per event (across all occurrences)
     const eventStatusCounts = {}
     for (const a of attendance) {
       if (!eventStatusCounts[a.event_id]) eventStatusCounts[a.event_id] = { hadir: 0, sakit: 0, izin: 0, alpha: 0 }
@@ -50,11 +55,15 @@ export async function onRequestGet(context) {
 
     const perEvent = events.map(e => {
       const counts = eventStatusCounts[e.id] || { hadir: 0, sakit: 0, izin: 0, alpha: 0 }
-      const total = eventTotalMembers[e.id] || 0
+      const perOccurrence = eventMemberCount[e.id] || 0
+      const total = perOccurrence * (eventOccurrences[e.id] || 0)
       return {
         id: e.id,
         name: e.name,
         date: e.date,
+        repeat_type: e.repeat_type,
+        repeat_days: e.repeat_days,
+        occurrences: eventOccurrences[e.id] || 0,
         total_members: total,
         hadir: counts.hadir,
         sakit: counts.sakit,
@@ -64,12 +73,15 @@ export async function onRequestGet(context) {
       }
     })
 
-    // Count events per member (via their group)
+    // Count events per member (via their group): occurrences up to today
     const memberEventCount = {}
     for (const m of members) {
       let count = 0
-      for (const [eventId, gids] of Object.entries(eventGroupIds)) {
-        if (gids.includes(m.group_id)) count++
+      for (const e of events) {
+        const gids = eventGroupIds[e.id] || []
+        if (gids.includes(m.group_id)) {
+          count += eventOccurrences[e.id] || 0
+        }
       }
       memberEventCount[m.id] = count
     }

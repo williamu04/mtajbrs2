@@ -220,6 +220,7 @@ textarea { resize: vertical; min-height: 64px; }
 .btn-ghost-danger:hover { background: var(--danger-bg); }
 
 .btn-sm { min-height: 30px; padding: 0 10px; border-radius: 7px; font-size: .8125rem; }
+.btn-xs { min-height: 26px; padding: 0 8px; border-radius: 6px; font-size: .75rem; }
 .btn-icon { min-height: 36px; width: 36px; padding: 0; border-radius: 9px; }
 .btn.is-loading { pointer-events: none; opacity: .8; }
 
@@ -274,6 +275,7 @@ textarea { resize: vertical; min-height: 64px; }
 .badge-today { background: var(--primary-100); color: var(--primary-600); }
 .badge-future { background: var(--primary-50); color: var(--primary); }
 .badge-done { background: var(--bg); color: var(--muted); }
+.badge-repeat { background: var(--primary-50); color: var(--primary-600); text-transform: none; letter-spacing: .01em; }
 .badge-count { background: var(--bg); color: var(--text-2); text-transform: none; letter-spacing: 0; padding: 2px 10px; }
 
 /* ── Checkbox pills ── */
@@ -292,6 +294,9 @@ textarea { resize: vertical; min-height: 64px; }
 .pill-subgroup { margin-top: 12px; }
 .pill-subgroup:first-child { margin-top: 0; }
 .pill-subgroup-label { display: block; font-size: .75rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 6px; }
+
+.repeat-pills { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.repeat-pills .pill-check { padding: 6px 11px; font-size: .8125rem; }
 
 /* ── Search box ── */
 .search-box {

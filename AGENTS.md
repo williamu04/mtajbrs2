@@ -35,11 +35,12 @@ Browser → Cloudflare Pages
 | `functions/api/groups/[id].js` | Group by ID | `onRequestPut`, `onRequestDelete` |
 | `functions/api/members/index.js` | Members CRUD | `onRequestGet` (supports `?group_id=` filter with join), `onRequestPost` |
 | `functions/api/members/[id].js` | Member by ID | `onRequestPut`, `onRequestDelete` |
-| `functions/api/events/index.js` | Events CRUD | `onRequestGet` (ordered by date desc), `onRequestPost` |
+| `functions/api/events/index.js` | Events CRUD | `onRequestGet` (ordered by date desc), `onRequestPost` (accepts `repeat_type`, `repeat_days`) |
 | `functions/api/events/[id].js` | Event by ID | `onRequestPut`, `onRequestDelete` |
 | `functions/api/events/[id]/groups.js` | Event-group assignment | `onRequestGet`, `onRequestPost` (accepts `{ group_ids: [...] }`) |
-| `functions/api/attendance/[event].js` | Attendance (public) | `onRequestGet` (event info + members grouped + existing status), `onRequestPost` (upserts batch attendance) |
+| `functions/api/attendance/[event].js` | Attendance (public) | `onRequestGet` (event info + members grouped + status for an occurrence; `?date=` param, defaults to today WIB), `onRequestPost` (upserts batch attendance for today's occurrence) |
 | `functions/api/stats.js` | Statistics | `onRequestGet` (admin-only, returns per-event + per-member stats) |
+| `functions/_utils/recurrence.js` | Weekly recurrence helpers | `serverToday()`, `isScheduledOn(event, date)`, `occurrenceDates(event, max)`, `nextScheduledDate(event, after)`, `countOccurrencesUpTo(event, date)`, `parseRepeatDays(event)`, `serializeRepeatDays(type, days)` |
 
 ### Frontend (`public/`)
 
@@ -61,6 +62,7 @@ Browser → Cloudflare Pages
 | File | Purpose |
 |------|---------|
 | `schema.sql` | Full database DDL (5 tables with FK constraints, CHECK constraints, UNIQUE tuples) |
+| `migrations/` | SQL migrations to upgrade existing databases |
 | `seed.sql` | Seed data with 2 batches, 7 groups and ~90 members |
 | `PLAN.md` | Original project plan and design document |
 
@@ -70,15 +72,17 @@ Browser → Cloudflare Pages
 
 **`batches`** — `id UUID PK`, `name TEXT NOT NULL`, `description TEXT`, `created_at TIMESTAMPTZ`
 
+**`events`** — `id UUID PK`, `name TEXT NOT NULL`, `date DATE NOT NULL` (reference/start date), `start_time TIME`, `end_time TIME`, `location TEXT`, `description TEXT`, `repeat_type TEXT NOT NULL DEFAULT 'none'` (`none` or `weekly`), `repeat_days TEXT NOT NULL DEFAULT ''` (comma-separated weekday numbers `0=Sun..6=Sat`), `created_at TIMESTAMPTZ`
+
 **`groups`** — `id UUID PK`, `name TEXT NOT NULL`, `description TEXT`, `batch_id UUID → batches(id) ON DELETE SET NULL`, `created_at TIMESTAMPTZ`
 
 **`members`** — `id UUID PK`, `nickname TEXT NOT NULL`, `group_id UUID NOT NULL → groups(id) ON DELETE CASCADE`, `created_at TIMESTAMPTZ`
 
-**`events`** — `id UUID PK`, `name TEXT NOT NULL`, `date DATE NOT NULL`, `start_time TIME`, `end_time TIME`, `location TEXT`, `description TEXT`, `created_at TIMESTAMPTZ`
+**`events`** — recurring template (see above); attendance link is stable and reused each occurrence
 
 **`group_event`** — `id UUID PK`, `group_id UUID → groups(id) ON DELETE CASCADE`, `event_id UUID → events(id) ON DELETE CASCADE`, UNIQUE(group_id, event_id)
 
-**`member_event`** — `id UUID PK`, `member_id UUID → members(id) ON DELETE CASCADE`, `event_id UUID → events(id) ON DELETE CASCADE`, `status TEXT CHECK (IN 'hadir','sakit','izin','alpha')`, `notes TEXT`, UNIQUE(member_id, event_id)
+**`member_event`** — `id UUID PK`, `member_id UUID → members(id) ON DELETE CASCADE`, `event_id UUID → events(id) ON DELETE CASCADE`, `occurrence_date DATE NOT NULL`, `status TEXT CHECK (IN 'hadir','sakit','izin','alpha')`, `notes TEXT`, UNIQUE(member_id, event_id, occurrence_date)
 
 ## API Patterns
 
@@ -128,22 +132,22 @@ The `API` singleton in `public/js/api.js` wraps fetch with:
 ## Data Flows
 
 ### Attendance Recording Flow
-1. Admin creates event, assigns groups
-2. Attendance page fetches `GET /api/attendance/:event` → returns event + all members in their groups + current status
-3. Taker marks each member, submits `POST /api/attendance/:event` with `{ attendance: [{ member_id, status, notes }] }`
-4. Server upserts into `member_event` (conflict on `member_id, event_id`)
+1. Admin creates event (optionally recurring via `repeat_type=weekly` + `repeat_days`), assigns groups
+2. Attendance page fetches `GET /api/attendance/:event` → returns event + all members in their groups + status for **today's occurrence** (`occurrence_date`, default today WIB) + `scheduled` + `in_window` flags
+3. If today is a scheduled occurrence and inside the time window, taker marks each member and submits `POST /api/attendance/:event` with `{ attendance: [{ member_id, status, notes }] }`
+4. Server upserts into `member_event` (conflict on `member_id, event_id, occurrence_date`). Because attendance is keyed per date, the form naturally "resets" each new occurrence while preserving prior days' data.
 
 ### Stats Computation Flow
 1. Dashboard fetches `GET /api/stats`
 2. Server loads all events, group_event links, members, and member_event records
-3. Computes per-event: total expected members (sum of group sizes), status counts, hadir rate
-4. Computes per-member: total expected events (events their group was assigned to), status counts, hadir rate
+3. Computes per-event: total expected members (sum of group sizes × occurrences up to today), status counts across all occurrences, hadir rate
+4. Computes per-member: total expected events (scheduled occurrences up to today for their group), status counts, hadir rate
 
 ## Important Design Decisions
 
 1. **No runtime npm dependencies** — `jose` and `@supabase/supabase-js` are declared in package.json but never imported. All functionality uses native APIs. Do not add imports from these packages.
 2. **Public attendance** — The attendance GET/POST endpoints deliberately skip auth so anyone with the event URL can record attendance.
-3. **Batch upsert** — All attendance for an event is submitted in one request and upserted by `(member_id, event_id)`.
+3. **Batch upsert** — All attendance for an event's occurrence is submitted in one request and upserted by `(member_id, event_id, occurrence_date)`. The unique tuple includes `occurrence_date`, so each occurrence's attendance is stored separately and the form resets between occurrences.
 4. **Cascading deletes** — Deleting a group cascade-deletes its members and their attendance records. The DB schema enforces this via `ON DELETE CASCADE`.
 5. **Indonesian language** — All UI text uses Indonesian (`kelompok`, `anggota`, `kegiatan`, `hadir`, `sakit`, `izin`, `alpha`). Status labels and their display names should stay in Indonesian.
 6. **No build step** — The project has zero build configuration. CF Pages serves `public/` directly and auto-discovers `functions/`.

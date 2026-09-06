@@ -48,6 +48,8 @@ Zero runtime dependencies — the codebase uses no npm packages at runtime. (`jo
 │       ├── attendance/
 │       │   └── [event].js      # GET, POST /api/attendance/:event (public)
 │       └── stats.js            # GET /api/stats (admin)
+├── migrations/                  # SQL migrations for existing databases
+│   └── 2026-09-06-recurring-events.sql
 ├── public/                     # Static frontend (served by Cloudflare Pages)
 │   ├── index.html              # Redirects to login.html
 │   ├── login.html              # Admin login page
@@ -61,7 +63,7 @@ Zero runtime dependencies — the codebase uses no npm packages at runtime. (`jo
 │       ├── admin.js            # Dashboard CRUD logic + stats
 │       ├── attendance.js       # Attendance page logic
 │       └── recap.js            # Recap page logic
-├── schema.sql                  # Database schema (5 tables)
+├── schema.sql                  # Database schema (fresh install)
 ├── seed.sql                    # Test/seed data
 ├── PLAN.md                     # Original implementation plan
 └── package.json
@@ -75,9 +77,9 @@ Five PostgreSQL tables managed via Supabase:
 |-------|---------|
 | `groups` | Member groups (e.g., pa-kelompok1, pemudi) |
 | `members` | Individual members (nickname + group FK) |
-| `events` | Activities/events with date, time, location |
+| `events` | Activities/events with date, time, location, and optional weekly repeat (`repeat_type`, `repeat_days`) |
 | `group_event` | Many-to-many: which groups participate in which events |
-| `member_event` | Attendance records: one row per member per event with status |
+| `member_event` | Attendance records: one row per member per event occurrence (`member_id`, `event_id`, `occurrence_date`) |
 
 Attendance statuses: `hadir` (present), `sakit` (sick), `izin` (permitted absence), `alpha` (unexcused absence).
 
@@ -90,6 +92,9 @@ See `schema.sql` for the full DDL.
 1. Create a free Supabase project at [supabase.com](https://supabase.com)
 2. Open the SQL Editor and run the contents of `schema.sql`
 3. (Optional) Run `seed.sql` to populate sample data
+
+> **Existing database?** If your database was created before recurring events, run
+> `migrations/2026-09-06-recurring-events.sql` instead of re-running `schema.sql`.
 
 ### 2. Environment Variables
 
