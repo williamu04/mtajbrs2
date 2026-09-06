@@ -79,7 +79,7 @@ function addDaysISO(dateStr, days) {
 }
 
 function todayWIB() {
-  return new Date(Date.now() - 25200000).toISOString().slice(0, 10)
+  return new Date(Date.now() + 25200000).toISOString().slice(0, 10)
 }
 
 function occurrenceDate(e, today) {
