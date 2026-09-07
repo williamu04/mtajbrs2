@@ -6,7 +6,7 @@ function dateUTC(str) {
 }
 
 export function serverToday() {
-  return new Date(Date.now() - TZ_OFFSET_MS).toISOString().slice(0, 10)
+  return new Date(Date.now() + TZ_OFFSET_MS).toISOString().slice(0, 10)
 }
 
 export function occurrenceDates(event, maxDates = 56) {
