@@ -101,10 +101,10 @@ export async function onRequestPost(context) {
       const now = Date.now()
       const [y, m, d] = occurrenceDate.split('-').map(Number)
       const [sh, sm] = event.start_time.split(':').map(Number)
-      const start = new Date(Date.UTC(y, m - 1, d, sh, sm)) - TZ_OFFSET_MS
+      const start = new Date(Date.UTC(y, m - 1, d, sh, sm)) + TZ_OFFSET_MS
       const end = event.end_time
-        ? (() => { const [eh, em] = event.end_time.split(':'); return new Date(Date.UTC(y, m - 1, d, +eh, +em)) - TZ_OFFSET_MS })()
-        : new Date(Date.UTC(y, m - 1, d, 23, 59) - TZ_OFFSET_MS)
+        ? (() => { const [eh, em] = event.end_time.split(':'); return new Date(Date.UTC(y, m - 1, d, +eh, +em)) + TZ_OFFSET_MS })()
+        : new Date(Date.UTC(y, m - 1, d, 23, 59) + TZ_OFFSET_MS)
       if (now < start || now > end) {
         return new Response(JSON.stringify({ error: 'Di luar waktu pengisian kehadiran' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
       }
@@ -138,9 +138,9 @@ function isInTimeWindow(event, dateStr) {
   const now = Date.now()
   const [y, m, d] = dateStr.split('-').map(Number)
   const [sh, sm] = event.start_time.split(':').map(Number)
-  const start = new Date(Date.UTC(y, m - 1, d, sh, sm)) - TZ_OFFSET_MS
+  const start = new Date(Date.UTC(y, m - 1, d, sh, sm)) + TZ_OFFSET_MS
   const end = event.end_time
-    ? (() => { const [eh, em] = event.end_time.split(':'); return new Date(Date.UTC(y, m - 1, d, +eh, +em)) - TZ_OFFSET_MS })()
-    : new Date(Date.UTC(y, m - 1, d, 23, 59) - TZ_OFFSET_MS)
+    ? (() => { const [eh, em] = event.end_time.split(':'); return new Date(Date.UTC(y, m - 1, d, +eh, +em)) + TZ_OFFSET_MS })()
+    : new Date(Date.UTC(y, m - 1, d, 23, 59) + TZ_OFFSET_MS)
   return now >= start && now <= end
 }
