@@ -159,6 +159,7 @@ document.querySelectorAll('[data-logout], #logoutBtn').forEach(btn => {
 async function renderBatches() {
   const el = document.getElementById('tab-batches')
   const batches = await API.getBatches()
+  window._batchById = Object.fromEntries(batches.map(b => [b.id, b]))
 
   el.innerHTML = `
     <div class="page-head">
@@ -189,7 +190,7 @@ async function renderBatches() {
       </div>
       <div class="table-scroll">
         <table class="table">
-          <thead><tr><th>Nama</th><th>Deskripsi</th><th class="right">Aksi</th></tr></thead>
+          <thead><tr><th>Nama</th><th class="right">Aksi</th></tr></thead>
           <tbody>
             ${batches.map(b => `
               <tr>
@@ -198,7 +199,6 @@ async function renderBatches() {
                     <span class="cell-title" id="bname-${b.id}">${esc(b.name)}</span>
                   </div>
                 </td>
-                <td class="muted"><span id="bdesc-${b.id}">${esc(b.description || '')}</span></td>
                 <td class="td-actions">
                   <div class="inline-edit">
                     <button class="btn btn-sm btn-ghost" onclick="editBatch('${b.id}')">${ic('edit')} </button>
@@ -230,13 +230,10 @@ async function createBatch() {
 
 async function editBatch(id) {
   const nameSpan = document.getElementById(`bname-${id}`)
-  const descSpan = document.getElementById(`bdesc-${id}`)
   const row = nameSpan.closest('tr')
   const currentName = nameSpan.textContent
-  const currentDesc = descSpan.textContent
 
   nameSpan.outerHTML = `<input type="text" id="edit-bname-${id}" value="${esc(currentName)}" style="width:170px">`
-  descSpan.outerHTML = `<input type="text" id="edit-bdesc-${id}" value="${esc(currentDesc)}" style="width:210px">`
 
   const btn = row.querySelector('.inline-edit')
   btn.innerHTML = `
@@ -247,8 +244,8 @@ async function editBatch(id) {
 
 async function saveBatch(id) {
   const name = document.getElementById(`edit-bname-${id}`).value.trim()
-  const desc = document.getElementById(`edit-bdesc-${id}`).value.trim()
   if (!name) return
+  const desc = (window._batchById?.[id]?.description) || ''
   await API.updateBatch(id, name, desc)
   toast('Perubahan gelombang disimpan.')
   renderBatches()
@@ -274,6 +271,7 @@ async function renderGroups() {
   const el = document.getElementById('tab-groups')
   const [groups, batches] = await Promise.all([API.getGroups(), API.getBatches()])
   window._batches = batches
+  window._groupById = Object.fromEntries(groups.map(g => [g.id, g]))
 
   const groupRow = g => `
     <tr>
@@ -282,7 +280,6 @@ async function renderGroups() {
           <span class="cell-title" id="gname-${g.id}" data-batch="${g.batch_id || ''}">${esc(g.name)}</span>
         </div>
       </td>
-      <td class="muted"><span id="gdesc-${g.id}">${esc(g.description || '')}</span></td>
       <td class="td-actions">
         <div class="inline-edit">
           <button class="btn btn-sm btn-ghost" onclick="editGroup('${g.id}')">${ic('edit')} </button>
@@ -298,7 +295,7 @@ async function renderGroups() {
     </div>
     <div class="table-scroll">
       <table class="table">
-        <thead><tr><th>Nama</th><th>Deskripsi</th><th class="right">Aksi</th></tr></thead>
+        <thead><tr><th>Nama</th><th class="right">Aksi</th></tr></thead>
         <tbody>${list.map(groupRow).join('')}</tbody>
       </table>
     </div>`
@@ -368,15 +365,12 @@ async function createGroup() {
 
 async function editGroup(id) {
   const nameSpan = document.getElementById(`gname-${id}`)
-  const descSpan = document.getElementById(`gdesc-${id}`)
   const row = nameSpan.closest('tr')
   const currentName = nameSpan.textContent
-  const currentDesc = descSpan.textContent
   const currentBatch = nameSpan.dataset.batch || ''
 
-  nameSpan.outerHTML = `<input type="text" id="edit-gname-${id}" value="${esc(currentName)}" style="width:170px">`
-  descSpan.outerHTML = `
-    <input type="text" id="edit-gdesc-${id}" value="${esc(currentDesc)}" style="width:160px">
+  nameSpan.outerHTML = `
+    <input type="text" id="edit-gname-${id}" value="${esc(currentName)}" style="width:170px">
     <select id="edit-gbatch-${id}" style="width:auto;margin-left:8px">
       <option value="">Tanpa gelombang</option>
       ${(window._batches || []).map(b => `
@@ -394,9 +388,9 @@ async function editGroup(id) {
 
 async function saveGroup(id) {
   const name = document.getElementById(`edit-gname-${id}`).value.trim()
-  const desc = document.getElementById(`edit-gdesc-${id}`).value.trim()
   const batchId = document.getElementById(`edit-gbatch-${id}`)?.value || null
   if (!name) return
+  const desc = (window._groupById?.[id]?.description) || ''
   await API.updateGroup(id, name, desc, batchId)
   toast('Perubahan kelompok disimpan.')
   renderGroups()
