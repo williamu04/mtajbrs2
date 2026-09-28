@@ -521,7 +521,7 @@ textarea {
   min-width: 0;
 }
 .table th {
-  text-align: left;
+  text-align: center;
   padding: 9px 12px;
   font-size: 0.65625rem;
   text-transform: uppercase;
@@ -540,6 +540,10 @@ textarea {
   background: #ffffff;
   transition: background-color .12s ease;
 }
+.table td:first-child {
+  word-break: break-word;
+  white-space: normal;
+}
 .table tbody tr:hover td {
   background: rgba(248, 250, 252, 0.85);
 }
@@ -549,6 +553,12 @@ textarea {
 .table .right, .td-actions {
   text-align: right;
   white-space: nowrap;
+}
+.table th.right {
+  text-align: center;
+}
+.td-actions .inline-edit {
+  flex-wrap: nowrap;
 }
 .table .num {
   font-variant-numeric: tabular-nums;
