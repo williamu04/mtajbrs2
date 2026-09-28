@@ -49,7 +49,10 @@ let _recapSort = { field: 'group', dir: 1 }
   }
 
   const navAttendance = document.getElementById('navAttendance')
-  if (navAttendance) { navAttendance.href = `attendance.html?event=${eventId}`; navAttendance.hidden = false }
+  const quickAttBtn = document.getElementById('quickAttBtn')
+  const attUrl = `attendance.html?event=${eventId}`
+  if (navAttendance) { navAttendance.href = attUrl; navAttendance.hidden = false }
+  if (quickAttBtn) { quickAttBtn.href = attUrl; quickAttBtn.hidden = false }
 
   try {
     const data = await API.getAttendance(eventId, date || undefined)

@@ -1,5 +1,5 @@
-import { getSupabase } from '../../_utils/supabase'
-import { serverToday, isScheduledOn } from '../../_utils/recurrence'
+import { getSupabase } from '../../_utils/supabase.js'
+import { serverToday, isScheduledOn } from '../../_utils/recurrence.js'
 
 const TZ_OFFSET_MS = 25200000
 

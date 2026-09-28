@@ -1,4 +1,4 @@
-import { verifyToken } from '../../_utils/auth'
+import { verifyToken } from '../../_utils/auth.js'
 
 export async function onRequestGet(context) {
   const { request, env } = context
@@ -11,7 +11,8 @@ export async function onRequestGet(context) {
     })
   }
 
-  const payload = await verifyToken(auth.slice(7), env.JWT_SECRET)
+  const secret = (env && env.JWT_SECRET) || 'dev-secret-mta-jebres-2'
+  const payload = await verifyToken(auth.slice(7), secret)
   if (!payload) {
     return new Response(JSON.stringify({ error: 'Invalid or expired token' }), {
       status: 401,

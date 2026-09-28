@@ -1,5 +1,18 @@
 {
   "name": "attendance-app",
   "version": "1.0.0",
-  "private": true
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx server.js",
+    "start": "node server.js",
+    "build": "echo 'Build OK'"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.4",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15"
+  }
 }

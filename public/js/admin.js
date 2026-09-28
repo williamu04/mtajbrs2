@@ -116,18 +116,28 @@ function recapDate(e, today) {
 // ── Tab switching ──
 document.querySelectorAll('[data-tab]').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('[data-tab]').forEach(b => b.classList.remove('active'))
+    const targetTab = btn.dataset.tab
+    document.querySelectorAll('[data-tab]').forEach(b => {
+      b.classList.toggle('active', b.dataset.tab === targetTab)
+    })
     document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none')
-    btn.classList.add('active')
-    const tab = document.getElementById('tab-' + btn.dataset.tab)
-    tab.style.display = 'block'
-    if (btn.dataset.tab === 'stats') renderStats()
+    const tab = document.getElementById('tab-' + targetTab)
+    if (tab) tab.style.display = 'block'
+    if (targetTab === 'stats') renderStats()
+
+    // Smooth scroll the active pill in mobile track
+    const activeSubPill = document.querySelector(`.subnav-pill[data-tab="${targetTab}"]`)
+    if (activeSubPill) {
+      activeSubPill.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+    }
   })
 })
 
-document.getElementById('logoutBtn').addEventListener('click', () => {
-  localStorage.removeItem('token')
-  window.location.href = 'login.html'
+document.querySelectorAll('[data-logout], #logoutBtn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    localStorage.removeItem('token')
+    window.location.href = 'login.html'
+  })
 })
 
   // Verify token on load

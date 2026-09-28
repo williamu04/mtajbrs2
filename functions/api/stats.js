@@ -1,6 +1,6 @@
-import { requireAuth } from '../_utils/auth'
-import { getSupabase } from '../_utils/supabase'
-import { serverToday, countOccurrencesUpTo } from '../_utils/recurrence'
+import { requireAuth } from '../_utils/auth.js'
+import { getSupabase } from '../_utils/supabase.js'
+import { serverToday, countOccurrencesUpTo } from '../_utils/recurrence.js'
 
 export async function onRequestGet(context) {
   const { request, env } = context

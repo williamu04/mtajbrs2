@@ -1,0 +1,8 @@
+{
+  "name": "MTA Jebres 2 Presensi",
+  "description": "A web attendance application for MTA Jebres 2 to manage groups, members, events, and attendance records.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

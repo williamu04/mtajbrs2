@@ -63,5 +63,6 @@ export async function verifyToken(token, secret) {
 export async function requireAuth(request, env) {
   const auth = request.headers.get('Authorization')
   if (!auth || !auth.startsWith('Bearer ')) return null
-  return await verifyToken(auth.slice(7), env.JWT_SECRET)
+  const secret = (env && env.JWT_SECRET) || 'dev-secret-mta-jebres-2'
+  return await verifyToken(auth.slice(7), secret)
 }

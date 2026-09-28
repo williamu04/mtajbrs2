@@ -94,9 +94,17 @@ function renderAttendance(data, eventId) {
     : ''
 
   const navRecap = document.getElementById('navRecap')
-  if (navRecap && occurrence_date) {
-    navRecap.href = `recap.html?event=${eventId}&date=${occurrence_date}`
-    navRecap.hidden = false
+  const quickRecapBtn = document.getElementById('quickRecapBtn')
+  if (occurrence_date) {
+    const recapUrl = `recap.html?event=${eventId}&date=${occurrence_date}`
+    if (navRecap) {
+      navRecap.href = recapUrl
+      navRecap.hidden = false
+    }
+    if (quickRecapBtn) {
+      quickRecapBtn.href = recapUrl
+      quickRecapBtn.hidden = false
+    }
   }
 
   let html = `
