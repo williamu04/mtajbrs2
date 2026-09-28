@@ -154,7 +154,6 @@ function renderAttendance(data, eventId) {
         <details class="group-details" ${marked ? 'open' : ''}>
           <summary class="group-summary">
             <span class="chev">${ic('chevron')}</span>
-            <span class="avatar xs" style="background:${colorFor(g.id)}">${initials(g.name)}</span>
             <span class="group-title">${esc(g.name)}</span>
             <span class="group-count">${marked}/${g.members.length}</span>
             <span class="group-progress"><span class="group-progress-fill" style="width:${pct}%"></span></span>
@@ -163,7 +162,6 @@ function renderAttendance(data, eventId) {
             ${g.members.map(m => `
             <div class="member-row${!m.status ? ' status-none' : ''}">
               <div class="member-ident">
-                <span class="avatar xs" style="background:${colorFor(m.group_id || g.id)}">${initials(m.nickname)}</span>
                 <span class="member-name">${esc(m.nickname)}</span>
               </div>
               <div class="segmented" role="radiogroup" aria-label="Status ${esc(m.nickname)}">

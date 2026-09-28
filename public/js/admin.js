@@ -195,15 +195,14 @@ async function renderBatches() {
               <tr>
                 <td>
                   <div class="cell-main">
-                    <span class="avatar" style="background:${colorFor(b.id)}">${initials(b.name)}</span>
                     <span class="cell-title" id="bname-${b.id}">${esc(b.name)}</span>
                   </div>
                 </td>
                 <td class="muted"><span id="bdesc-${b.id}">${esc(b.description || '')}</span></td>
                 <td class="td-actions">
                   <div class="inline-edit">
-                    <button class="btn btn-sm btn-ghost" onclick="editBatch('${b.id}')">${ic('edit')} Ubah</button>
-                    <button class="btn btn-sm btn-ghost-danger" onclick="deleteBatch('${b.id}')">${ic('trash')} Hapus</button>
+                    <button class="btn btn-sm btn-ghost" onclick="editBatch('${b.id}')">${ic('edit')} </button>
+                    <button class="btn btn-sm btn-ghost-danger" onclick="deleteBatch('${b.id}')">${ic('trash')} </button>
                   </div>
                 </td>
               </tr>
@@ -280,15 +279,14 @@ async function renderGroups() {
     <tr>
       <td>
         <div class="cell-main">
-          <span class="avatar" style="background:${colorFor(g.id)}">${initials(g.name)}</span>
           <span class="cell-title" id="gname-${g.id}" data-batch="${g.batch_id || ''}">${esc(g.name)}</span>
         </div>
       </td>
       <td class="muted"><span id="gdesc-${g.id}">${esc(g.description || '')}</span></td>
       <td class="td-actions">
         <div class="inline-edit">
-          <button class="btn btn-sm btn-ghost" onclick="editGroup('${g.id}')">${ic('edit')} Ubah</button>
-          <button class="btn btn-sm btn-ghost-danger" onclick="deleteGroup('${g.id}')">${ic('trash')} Hapus</button>
+          <button class="btn btn-sm btn-ghost" onclick="editGroup('${g.id}')">${ic('edit')} </button>
+          <button class="btn btn-sm btn-ghost-danger" onclick="deleteGroup('${g.id}')">${ic('trash')} </button>
         </div>
       </td>
     </tr>`
@@ -467,7 +465,6 @@ async function renderMembers() {
       <details class="group-details batch-details" open>
         <summary class="group-summary">
           <span class="chev">${ic('chevron')}</span>
-          <span class="avatar xs" style="background:${colorFor(b.id)}">${initials(b.name)}</span>
           <span class="group-title">${esc(b.name)}</span>
           <span class="group-count">${bCount}</span>
         </summary>
@@ -478,7 +475,6 @@ async function renderMembers() {
             <details class="group-details">
               <summary class="group-summary">
                 <span class="chev">${ic('chevron')}</span>
-                <span class="avatar xs" style="background:${colorFor(g.id)}">${initials(g.name)}</span>
                 <span class="group-title">${esc(g.name)}</span>
                 <span class="group-count">${gMembers.length}</span>
               </summary>
@@ -491,14 +487,13 @@ async function renderMembers() {
                     <tr class="member-row-stub" data-name="${m.nickname.toLowerCase()}">
                       <td>
                         <div class="cell-main">
-                          <span class="avatar xs" style="background:${colorFor(m.group_id)}">${initials(m.nickname)}</span>
                           <span class="cell-title" id="mname-${m.id}" data-group-id="${m.group_id}">${esc(m.nickname)}</span>
                         </div>
                       </td>
                       <td class="td-actions">
                         <div class="inline-edit">
-                          <button class="btn btn-sm btn-ghost" onclick="editMember('${m.id}')">${ic('edit')} Ubah</button>
-                          <button class="btn btn-sm btn-ghost-danger" onclick="deleteMember('${m.id}')">${ic('trash')} Hapus</button>
+                          <button class="btn btn-sm btn-ghost" onclick="editMember('${m.id}')">${ic('edit')} </button>
+                          <button class="btn btn-sm btn-ghost-danger" onclick="deleteMember('${m.id}')">${ic('trash')} </button>
                         </div>
                       </td>
                     </tr>
@@ -521,7 +516,6 @@ async function renderMembers() {
         <details class="group-details batch-details" open>
           <summary class="group-summary">
             <span class="chev">${ic('chevron')}</span>
-            <span class="avatar xs" style="background:var(--muted)">${initials('Tanpa Gelombang')}</span>
             <span class="group-title">Tanpa Gelombang</span>
             <span class="group-count">${groups.filter(g => !g.batch_id).length}</span>
           </summary>
@@ -532,7 +526,6 @@ async function renderMembers() {
               <details class="group-details">
                 <summary class="group-summary">
                   <span class="chev">${ic('chevron')}</span>
-                  <span class="avatar xs" style="background:${colorFor(g.id)}">${initials(g.name)}</span>
                   <span class="group-title">${esc(g.name)}</span>
                   <span class="group-count">${gMembers.length}</span>
                 </summary>
@@ -545,14 +538,13 @@ async function renderMembers() {
                       <tr class="member-row-stub" data-name="${m.nickname.toLowerCase()}">
                         <td>
                           <div class="cell-main">
-                            <span class="avatar xs" style="background:${colorFor(m.group_id)}">${initials(m.nickname)}</span>
                             <span class="cell-title" id="mname-${m.id}" data-group-id="${m.group_id}">${esc(m.nickname)}</span>
                           </div>
                         </td>
                         <td class="td-actions">
                           <div class="inline-edit">
-                            <button class="btn btn-sm btn-ghost" onclick="editMember('${m.id}')">${ic('edit')} Ubah</button>
-                            <button class="btn btn-sm btn-ghost-danger" onclick="deleteMember('${m.id}')">${ic('trash')} Hapus</button>
+                            <button class="btn btn-sm btn-ghost" onclick="editMember('${m.id}')">${ic('edit')} </button>
+                            <button class="btn btn-sm btn-ghost-danger" onclick="deleteMember('${m.id}')">${ic('trash')} </button>
                           </div>
                         </td>
                       </tr>
@@ -772,16 +764,16 @@ async function renderEvents() {
       <div class="event-row">
         <div class="event-row-head">
           <div class="cell-main" style="flex-wrap:wrap">
-            <span class="avatar avatar-evt">${ic('calendar', 17)}</span>
-            <div>
+             <span class="avatar avatar-evt">${ic('calendar', 17)}</span>
+    <div>
               <div class="event-title" id="ename-${e.id}">${esc(e.name)}</div>
               <span class="badge ${st.cls}">${st.label}</span>
               ${repText ? `<span class="badge badge-repeat">${repText}</span>` : ''}
             </div>
           </div>
           <div class="inline-edit">
-            <button class="btn btn-sm btn-ghost" onclick="editEvent('${e.id}')">${ic('edit')} Ubah</button>
-            <button class="btn btn-sm btn-ghost-danger" onclick="deleteEvent('${e.id}')">${ic('trash')} Hapus</button>
+            <button class="btn btn-sm btn-ghost" onclick="editEvent('${e.id}')">${ic('edit')} </button>
+            <button class="btn btn-sm btn-ghost-danger" onclick="deleteEvent('${e.id}')">${ic('trash')} </button>
           </div>
         </div>
         <div class="event-row-meta">

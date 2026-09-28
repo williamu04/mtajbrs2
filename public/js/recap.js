@@ -34,36 +34,36 @@ function initials(name) {
 let _recapMembers = []
 let _recapSort = { field: 'group', dir: 1 }
 
-;(async () => {
-  const params = new URLSearchParams(location.search)
-  const eventId = params.get('event')
-  const date = params.get('date')
-  const content = document.getElementById('recapContent')
+  ; (async () => {
+    const params = new URLSearchParams(location.search)
+    const eventId = params.get('event')
+    const date = params.get('date')
+    const content = document.getElementById('recapContent')
 
-  if (!eventId) {
-    content.innerHTML = `<div class="card"><div class="empty">
+    if (!eventId) {
+      content.innerHTML = `<div class="card"><div class="empty">
       <span class="empty-icon">${ic('alert')}</span>
       Tidak ada kegiatan yang ditentukan.
     </div></div>`
-    return
-  }
+      return
+    }
 
-  const navAttendance = document.getElementById('navAttendance')
-  const quickAttBtn = document.getElementById('quickAttBtn')
-  const attUrl = `attendance.html?event=${eventId}`
-  if (navAttendance) { navAttendance.href = attUrl; navAttendance.hidden = false }
-  if (quickAttBtn) { quickAttBtn.href = attUrl; quickAttBtn.hidden = false }
+    const navAttendance = document.getElementById('navAttendance')
+    const quickAttBtn = document.getElementById('quickAttBtn')
+    const attUrl = `attendance.html?event=${eventId}`
+    if (navAttendance) { navAttendance.href = attUrl; navAttendance.hidden = false }
+    if (quickAttBtn) { quickAttBtn.href = attUrl; quickAttBtn.hidden = false }
 
-  try {
-    const data = await API.getAttendance(eventId, date || undefined)
-    renderRecap(data)
-  } catch (err) {
-    content.innerHTML = `<div class="card"><div class="empty">
+    try {
+      const data = await API.getAttendance(eventId, date || undefined)
+      renderRecap(data)
+    } catch (err) {
+      content.innerHTML = `<div class="card"><div class="empty">
       <span class="empty-icon">${ic('alert')}</span>
       Galat: ${esc(err.message)}
     </div></div>`
-  }
-})()
+    }
+  })()
 
 function renderRecap(data) {
   const content = document.getElementById('recapContent')
@@ -162,7 +162,6 @@ function renderRecapTable() {
                 <td class="muted">${esc(m.groupName)}</td>
                 <td>
                   <div class="cell-main">
-                    <span class="avatar xs" style="background:${colorFor(m.group_id)}">${initials(m.nickname)}</span>
                     <span class="cell-title">${esc(m.nickname)}</span>
                   </div>
                 </td>
